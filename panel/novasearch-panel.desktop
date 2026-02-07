@@ -1,0 +1,9 @@
+[Xfce Panel]
+Type=X-XFCE-PanelPlugin
+Encoding=UTF-8
+Name=NovaSearch
+Comment=Fast file search panel plugin
+Icon=system-search
+X-XFCE-Module=novasearch-panel
+X-XFCE-API=2.0
+X-XFCE-Internal=FALSE

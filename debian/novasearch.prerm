@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    remove|upgrade|deconfigure)
+        # Stop the daemon for all logged-in users
+        for user_id in $(loginctl list-users --no-legend | awk '{print $1}'); do
+            su - "$(loginctl show-user "$user_id" -p Name --value)" -c "systemctl --user stop novasearch-daemon" 2>/dev/null || true
+        done
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

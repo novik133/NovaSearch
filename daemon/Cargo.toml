@@ -1,0 +1,27 @@
+[package]
+name = "novasearch-daemon"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "novasearch_daemon"
+path = "src/lib.rs"
+
+[[bin]]
+name = "novasearch-daemon"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1.35", features = ["full"] }
+notify = "6.1"
+rusqlite = { version = "0.30", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+clap = { version = "4.4", features = ["derive"] }
+glob = "0.3"
+walkdir = "2.4"
+ctrlc = "3.4"
+
+[dev-dependencies]
+proptest = "1.4"
+tempfile = "3.8"

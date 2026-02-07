@@ -1,0 +1,40 @@
+# Rust
+daemon/target/
+
+# C
+panel/build/
+panel/*.so
+*.o
+
+# Meson build directory
+builddir/
+build/
+
+# Config and database (for development)
+.local/
+.config/novasearch/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.deb
+novasearch_*_amd64/
+novasearch-daemon_*_amd64/
+
+# Documentation (not needed in repo)
+*.md
+!README.md
+!BUILD.md
+!INSTALL.md
+
+# Kiro specs
+.kiro/

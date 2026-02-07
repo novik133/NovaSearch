@@ -1,0 +1,43 @@
+# NovaSearch Configuration File
+# This is the system-wide default configuration
+# Users can override this by creating ~/.config/novasearch/config.toml
+
+[indexing]
+# Directories to include in the index
+# Use ~ for home directory
+include_paths = ["~"]
+
+# Glob patterns for files/directories to exclude
+exclude_patterns = [
+    ".*",              # Hidden files and directories
+    "node_modules",    # Node.js dependencies
+    ".git",            # Git repositories
+    "target",          # Rust build artifacts
+    "build",           # Build directories
+    "dist",            # Distribution directories
+    "__pycache__",     # Python cache
+    "*.pyc",           # Python compiled files
+    ".venv",           # Python virtual environments
+    "vendor",          # Vendor directories
+]
+
+[performance]
+# Maximum CPU usage during indexing (1-100)
+max_cpu_percent = 10
+
+# Maximum memory usage in megabytes
+max_memory_mb = 100
+
+# Number of operations to batch before writing to database
+batch_size = 100
+
+# Maximum time to wait before flushing batched operations (milliseconds)
+flush_interval_ms = 1000
+
+[ui]
+# Global keyboard shortcut to open search window
+# Format: Modifier+Key (e.g., "Super+Space", "Control+Alt+F", "Alt+Space")
+keyboard_shortcut = "Super+Space"
+
+# Maximum number of search results to display
+max_results = 50

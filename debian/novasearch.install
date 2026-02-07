@@ -1,0 +1,5 @@
+usr/bin/novasearch-daemon
+usr/lib/xfce4/panel/plugins/libnovasearch-panel.so
+usr/share/xfce4/panel/plugins/novasearch-panel.desktop
+usr/lib/systemd/user/novasearch-daemon.service
+etc/xdg/novasearch/config.toml

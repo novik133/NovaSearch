@@ -1,0 +1,27 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE = 1
+export CARGO_HOME = $(CURDIR)/debian/cargo
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	meson setup builddir --prefix=/usr --buildtype=release
+
+override_dh_auto_build:
+	meson compile -C builddir
+
+override_dh_auto_install:
+	DESTDIR=$(CURDIR)/debian/novasearch meson install -C builddir
+	# Install systemd user service
+	install -D -m 644 novasearch-daemon.service \
+		$(CURDIR)/debian/novasearch/usr/lib/systemd/user/novasearch-daemon.service
+	# Install default configuration
+	install -D -m 644 debian/novasearch.toml \
+		$(CURDIR)/debian/novasearch/etc/xdg/novasearch/config.toml
+
+override_dh_auto_clean:
+	rm -rf builddir
+	rm -rf debian/cargo
+	dh_auto_clean

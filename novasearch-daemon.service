@@ -1,0 +1,19 @@
+[Unit]
+Description=NovaSearch Indexing Daemon
+Documentation=man:novasearch-daemon(1)
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/novasearch-daemon start
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+# Resource limits
+MemoryMax=100M
+CPUQuota=10%
+
+[Install]
+WantedBy=default.target

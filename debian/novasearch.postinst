@@ -1,0 +1,28 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # Create data directory for all users
+        # Users will create their own database on first run
+        
+        # Reload systemd user daemon for all logged-in users
+        for user_id in $(loginctl list-users --no-legend | awk '{print $1}'); do
+            su - "$(loginctl show-user "$user_id" -p Name --value)" -c "systemctl --user daemon-reload" 2>/dev/null || true
+        done
+        
+        echo "NovaSearch installed successfully!"
+        echo ""
+        echo "To get started:"
+        echo "  1. Enable the daemon: systemctl --user enable --now novasearch-daemon"
+        echo "  2. Add the panel plugin: Right-click XFCE panel → Panel → Add New Items → NovaSearch"
+        echo "  3. Press Super+Space to open the search window"
+        echo ""
+        echo "Configuration: ~/.config/novasearch/config.toml"
+        echo "Database: ~/.local/share/novasearch/index.db"
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

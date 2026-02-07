@@ -1,0 +1,17 @@
+option('tests',
+  type: 'boolean',
+  value: true,
+  description: 'Build and run tests'
+)
+
+option('daemon',
+  type: 'boolean',
+  value: true,
+  description: 'Build the Rust daemon'
+)
+
+option('panel',
+  type: 'boolean',
+  value: true,
+  description: 'Build the panel plugin'
+)
