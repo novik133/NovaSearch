@@ -1,7 +1,20 @@
+[![Support me on Ko-fi](https://img.shields.io/badge/Support%20me%20on%20Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/novadesktop)
+
 # NovaSearch
 
 Fast, system-wide file search for Linux with XFCE4 integration. NovaSearch provides real-time file indexing and intelligent search ranking similar to macOS Spotlight, with comprehensive application discovery and launching capabilities.
 
+## Screenshots
+
+<p align="center">
+  <img src="Screenshots/2.gif" alt="NovaSearch Demo" width="800">
+</p>
+
+<p align="center">
+  <img src="Screenshots/3.png" width="32%" />
+  <img src="Screenshots/4.png" width="32%" />
+  <img src="Screenshots/5.png" width="32%" />
+</p>
 ## Features
 
 - **🚀 Real-time indexing**: Monitors filesystem changes using inotify
