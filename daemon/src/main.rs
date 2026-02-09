@@ -38,6 +38,12 @@ enum Commands {
     Status,
     /// Force a full re-index
     Reindex,
+    /// Show version information
+    Version,
+    /// Show about information
+    About,
+    /// Show author information
+    Author,
 }
 
 /// Main daemon structure
@@ -105,7 +111,16 @@ impl IndexingDaemon {
 
         // Start watching configured paths
         println!("Starting filesystem monitoring...");
-        let paths = self.config.expand_paths();
+        let mut paths = self.config.expand_paths();
+        
+        // Always add application directories to watch list
+        let app_dirs = self.get_application_directories();
+        for app_dir in app_dirs {
+            if app_dir.exists() && !paths.contains(&app_dir) {
+                paths.push(app_dir);
+            }
+        }
+        
         let mut watcher = self.watcher.lock().await;
         let errors = watcher.watch_paths(&paths);
         if !errors.is_empty() {
@@ -212,6 +227,46 @@ impl IndexingDaemon {
 
         println!("Shutdown complete");
     }
+
+    /// Get standard application directories that contain .desktop files
+    fn get_application_directories(&self) -> Vec<PathBuf> {
+        let mut app_dirs = Vec::new();
+        
+        // System application directories
+        app_dirs.push(PathBuf::from("/usr/share/applications"));
+        app_dirs.push(PathBuf::from("/usr/local/share/applications"));
+        
+        // User application directory
+        if let Ok(home) = std::env::var("HOME") {
+            let home_path = PathBuf::from(&home);
+            app_dirs.push(home_path.join(".local/share/applications"));
+        }
+        
+        // Snap applications
+        app_dirs.push(PathBuf::from("/var/lib/snapd/desktop/applications"));
+        if let Ok(home) = std::env::var("HOME") {
+            let home_path = PathBuf::from(&home);
+            app_dirs.push(home_path.join("snap"));
+        }
+        
+        // Flatpak applications
+        app_dirs.push(PathBuf::from("/var/lib/flatpak/exports/share/applications"));
+        if let Ok(home) = std::env::var("HOME") {
+            let home_path = PathBuf::from(&home);
+            app_dirs.push(home_path.join(".local/share/flatpak/exports/share/applications"));
+        }
+        
+        // AppImage applications (common locations)
+        if let Ok(home) = std::env::var("HOME") {
+            let home_path = PathBuf::from(&home);
+            app_dirs.push(home_path.join("Applications"));
+            app_dirs.push(home_path.join(".local/bin"));
+            app_dirs.push(home_path.join("AppImages"));
+        }
+        app_dirs.push(PathBuf::from("/opt"));
+        
+        app_dirs
+    }
 }
 
 /// Query and display indexing status
@@ -267,6 +322,57 @@ async fn reindex(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Show version information
+fn show_version() {
+    println!("NovaSearch Daemon");
+    println!("Version: 0.1.0");
+    println!("Build: Release");
+    println!("Platform: Linux");
+}
+
+/// Show about information
+fn show_about() {
+    println!("NovaSearch - Fast File Search System");
+    println!("=====================================");
+    println!();
+    println!("Description:");
+    println!("  Fast system-wide file search for Linux with XFCE4 integration.");
+    println!("  Provides real-time file indexing and intelligent search ranking");
+    println!("  based on usage patterns, similar to macOS Spotlight.");
+    println!();
+    println!("Components:");
+    println!("  • Daemon: Real-time filesystem indexing (Rust)");
+    println!("  • Panel Plugin: XFCE4 integration (C + GTK3)");
+    println!("  • Database: SQLite with usage tracking");
+    println!();
+    println!("Version: 0.1.0");
+    println!("License: GPL-3.0");
+    println!("Website: https://github.com/novik133/NovaSearch");
+    println!();
+    println!("If you like NovaSearch, consider supporting development:");
+    println!("https://ko-fi.com/novadesktop");
+}
+
+/// Show author information
+fn show_author() {
+    println!("NovaSearch Author Information");
+    println!("============================");
+    println!();
+    println!("Created by: Kamil 'Novik' Nowicki");
+    println!("GitHub: https://github.com/novik133");
+    println!("Email: Contact via GitHub");
+    println!();
+    println!("License: GPL-3.0");
+    println!("Copyright (c) 2024 Kamil 'Novik' Nowicki");
+    println!();
+    println!("Support Development:");
+    println!("If you find NovaSearch useful, please consider");
+    println!("supporting its development with a donation:");
+    println!("https://ko-fi.com/novadesktop");
+    println!();
+    println!("Thank you for using NovaSearch!");
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
@@ -304,6 +410,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Reindex => {
             reindex(config).await?;
+        }
+        Commands::Version => {
+            show_version();
+        }
+        Commands::About => {
+            show_about();
+        }
+        Commands::Author => {
+            show_author();
         }
     }
 

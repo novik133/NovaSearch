@@ -35,6 +35,7 @@ novasearch-daemon_*_amd64/
 !README.md
 !BUILD.md
 !INSTALL.md
+!CHANGELOG.md
 
 # Kiro specs
 .kiro/

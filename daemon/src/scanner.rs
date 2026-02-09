@@ -49,8 +49,17 @@ impl Scanner {
     /// Scan all configured directories and return file entries
     pub fn scan(&self) -> Vec<FileEntry> {
         let mut entries = Vec::new();
+        
+        // Always scan application directories first (regardless of user config)
+        let app_dirs = self.get_application_directories();
+        for path in app_dirs {
+            if path.exists() {
+                entries.extend(self.scan_application_directory(&path));
+            }
+        }
+        
+        // Then scan user-configured paths
         let include_paths = self.config.expand_paths();
-
         for path in include_paths {
             if path.exists() {
                 entries.extend(self.scan_directory(&path));
@@ -60,6 +69,125 @@ impl Scanner {
         }
 
         entries
+    }
+
+    /// Get standard application directories that contain .desktop files
+    fn get_application_directories(&self) -> Vec<PathBuf> {
+        let mut app_dirs = Vec::new();
+        
+        // System application directories
+        app_dirs.push(PathBuf::from("/usr/share/applications"));
+        app_dirs.push(PathBuf::from("/usr/local/share/applications"));
+        
+        // User application directory
+        if let Ok(home) = std::env::var("HOME") {
+            let home_path = PathBuf::from(&home);
+            app_dirs.push(home_path.join(".local/share/applications"));
+        }
+        
+        // Snap applications
+        app_dirs.push(PathBuf::from("/var/lib/snapd/desktop/applications"));
+        if let Ok(home) = std::env::var("HOME") {
+            let home_path = PathBuf::from(&home);
+            app_dirs.push(home_path.join("snap"));
+        }
+        
+        // Flatpak applications
+        app_dirs.push(PathBuf::from("/var/lib/flatpak/exports/share/applications"));
+        if let Ok(home) = std::env::var("HOME") {
+            let home_path = PathBuf::from(&home);
+            app_dirs.push(home_path.join(".local/share/flatpak/exports/share/applications"));
+        }
+        
+        // AppImage applications (common locations)
+        if let Ok(home) = std::env::var("HOME") {
+            let home_path = PathBuf::from(&home);
+            app_dirs.push(home_path.join("Applications"));
+            app_dirs.push(home_path.join(".local/bin"));
+            app_dirs.push(home_path.join("AppImages"));
+        }
+        app_dirs.push(PathBuf::from("/opt"));
+        
+        app_dirs
+    }
+
+    /// Scan application directory specifically for .desktop files and AppImages
+    fn scan_application_directory(&self, path: &Path) -> Vec<FileEntry> {
+        let mut entries = Vec::new();
+        
+        for entry_result in WalkDir::new(path)
+            .follow_links(false)
+            .into_iter()
+        {
+            match entry_result {
+                Ok(entry) => {
+                    let entry_path = entry.path();
+                    
+                    // Update progress
+                    {
+                        let mut progress = self.progress.lock().unwrap();
+                        progress.current_path = Some(entry_path.to_path_buf());
+                        
+                        if entry.file_type().is_dir() {
+                            progress.directories_scanned += 1;
+                        } else {
+                            progress.files_scanned += 1;
+                        }
+                    }
+
+                    // Check if this is a .desktop file or AppImage
+                    let should_include = if entry.file_type().is_file() {
+                        if let Some(extension) = entry_path.extension() {
+                            extension == "desktop" || extension == "AppImage"
+                        } else {
+                            // Check if it's an AppImage without extension
+                            if let Some(filename) = entry_path.file_name() {
+                                let filename_str = filename.to_string_lossy();
+                                filename_str.contains("AppImage") || 
+                                self.is_appimage_file(entry_path)
+                            } else {
+                                false
+                            }
+                        }
+                    } else {
+                        // Include directories in application paths
+                        true
+                    };
+
+                    if should_include {
+                        if let Some(file_entry) = self.extract_file_entry(&entry) {
+                            entries.push(file_entry);
+                        }
+                    }
+                }
+                Err(err) => {
+                    // Handle permission errors gracefully for system directories
+                    if !err.to_string().contains("Permission denied") {
+                        eprintln!("Warning: Failed to access application path: {}", err);
+                    }
+                    let mut progress = self.progress.lock().unwrap();
+                    progress.errors_encountered += 1;
+                }
+            }
+        }
+
+        entries
+    }
+
+    /// Check if a file is an AppImage by examining its content
+    fn is_appimage_file(&self, path: &Path) -> bool {
+        use std::fs::File;
+        use std::io::Read;
+        
+        if let Ok(mut file) = File::open(path) {
+            let mut buffer = [0; 1024];
+            if let Ok(bytes_read) = file.read(&mut buffer) {
+                let content = String::from_utf8_lossy(&buffer[..bytes_read]);
+                // AppImages typically contain "AppImage" in their header or have ELF magic
+                return content.contains("AppImage") || buffer.starts_with(b"\x7fELF");
+            }
+        }
+        false
     }
 
     /// Scan a single directory recursively

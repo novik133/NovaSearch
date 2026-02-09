@@ -33,6 +33,9 @@ void nova_search_db_free(NovaSearchDB *db);
 /* Query functions */
 SearchResult* nova_search_db_query(NovaSearchDB *db, const char *query, int max_results);
 
+/* Usage tracking functions */
+bool nova_search_db_record_launch(NovaSearchDB *db, const char *file_path);
+
 /* Result management functions */
 SearchResult* nova_search_result_new(void);
 void nova_search_result_free(SearchResult *result);

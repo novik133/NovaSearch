@@ -148,18 +148,21 @@ SearchResult* nova_search_db_query(NovaSearchDB *db, const char *query, int max_
         max_results = 50; /* Default limit */
     }
 
-    /* Prepare SQL query with ranking logic */
+    /* Prepare SQL query with usage-based ranking logic */
     const char *sql = 
-        "SELECT filename, path, file_type, size, modified_time "
-        "FROM files "
-        "WHERE filename LIKE '%' || ? || '%' "
+        "SELECT f.filename, f.path, f.file_type, f.size, f.modified_time, "
+        "       COALESCE(u.launch_count, 0) as launch_count "
+        "FROM files f "
+        "LEFT JOIN usage_stats u ON f.id = u.file_id "
+        "WHERE f.filename LIKE '%' || ? || '%' "
         "ORDER BY "
         "  CASE "
-        "    WHEN filename = ? THEN 0 "           /* Exact match */
-        "    WHEN filename LIKE ? || '%' THEN 1 " /* Prefix match */
-        "    ELSE 2 "                              /* Substring match */
+        "    WHEN f.filename = ? THEN 0 "           /* Exact match */
+        "    WHEN f.filename LIKE ? || '%' THEN 1 " /* Prefix match */
+        "    ELSE 2 "                               /* Substring match */
         "  END, "
-        "  filename COLLATE NOCASE "
+        "  COALESCE(u.launch_count, 0) DESC, "      /* Usage frequency */
+        "  f.filename COLLATE NOCASE "
         "LIMIT ?";
 
     sqlite3_stmt *stmt = NULL;
@@ -215,6 +218,84 @@ SearchResult* nova_search_db_query(NovaSearchDB *db, const char *query, int max_
 
     sqlite3_finalize(stmt);
     return head;
+}
+
+/* Record file launch for usage tracking */
+bool nova_search_db_record_launch(NovaSearchDB *db, const char *file_path) {
+    if (!db || !file_path) {
+        return false;
+    }
+
+    /* We need to open the database in read-write mode for this operation */
+    sqlite3 *rw_db = NULL;
+    int rc = sqlite3_open(db->db_path, &rw_db);
+    
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to open database for writing: %s\n", sqlite3_errmsg(rw_db));
+        if (rw_db) {
+            sqlite3_close(rw_db);
+        }
+        return false;
+    }
+
+    /* Get current timestamp */
+    time_t current_time = time(NULL);
+    
+    /* First, get the file ID */
+    const char *get_file_id_sql = "SELECT id FROM files WHERE path = ?";
+    sqlite3_stmt *stmt = NULL;
+    
+    rc = sqlite3_prepare_v2(rw_db, get_file_id_sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare file ID query: %s\n", sqlite3_errmsg(rw_db));
+        sqlite3_close(rw_db);
+        return false;
+    }
+    
+    sqlite3_bind_text(stmt, 1, file_path, -1, SQLITE_TRANSIENT);
+    
+    int64_t file_id = -1;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        file_id = sqlite3_column_int64(stmt, 0);
+    }
+    
+    sqlite3_finalize(stmt);
+    
+    if (file_id == -1) {
+        /* File not found in database */
+        sqlite3_close(rw_db);
+        return false;
+    }
+    
+    /* Insert or update usage stats */
+    const char *upsert_sql = 
+        "INSERT INTO usage_stats (file_id, launch_count, last_launched) "
+        "VALUES (?, 1, ?) "
+        "ON CONFLICT(file_id) DO UPDATE SET "
+        "  launch_count = launch_count + 1, "
+        "  last_launched = ?";
+    
+    rc = sqlite3_prepare_v2(rw_db, upsert_sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare usage update query: %s\n", sqlite3_errmsg(rw_db));
+        sqlite3_close(rw_db);
+        return false;
+    }
+    
+    sqlite3_bind_int64(stmt, 1, file_id);
+    sqlite3_bind_int64(stmt, 2, current_time);
+    sqlite3_bind_int64(stmt, 3, current_time);
+    
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    sqlite3_close(rw_db);
+    
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "Failed to update usage stats: %s\n", sqlite3_errmsg(rw_db));
+        return false;
+    }
+    
+    return true;
 }
 
 /* Create a new search result */

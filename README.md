@@ -1,142 +1,243 @@
 # NovaSearch
 
-Fast, system-wide file search for Linux with XFCE4 integration.
+Fast, system-wide file search for Linux with XFCE4 integration. NovaSearch provides real-time file indexing and intelligent search ranking similar to macOS Spotlight, with comprehensive application discovery and launching capabilities.
 
 ## Features
 
-- **Real-time indexing**: Monitors filesystem changes using inotify
-- **Fast search**: SQLite-backed index with optimized queries
-- **Native integration**: GTK3 panel plugin for XFCE4
-- **Configurable**: Customizable include/exclude patterns
-- **Lightweight**: Minimal resource usage
+- **🚀 Real-time indexing**: Monitors filesystem changes using inotify
+- **⚡ Fast search**: SQLite-backed index with optimized queries and usage tracking
+- **🎯 Smart application discovery**: Automatically indexes all applications (apt, snap, flatpak, AppImage)
+- **🖼️ Application icons**: Shows proper application icons and names in search results
+- **🔧 Native integration**: GTK3 panel plugin for XFCE4 with system theme support
+- **⌨️ Configurable shortcuts**: Interactive keyboard shortcut capture and customization
+- **📁 Configuration GUI**: Built-in configuration editor with tabbed interface
+- **💡 Usage tracking**: Prioritizes frequently used files and applications
+- **🎨 Modern UI**: Spotlight-like search window without decorations
+- **📊 CLI tools**: Comprehensive command-line interface for daemon management
+
+## Version
+
+**Current Version**: 0.1.0
+
+## Quick Start
+
+### Installation (Debian Package)
+
+1. **Download and install the package**:
+   ```bash
+   # Build the package
+   ./build-deb-manual.sh
+   
+   # Install
+   sudo dpkg -i novasearch_0.1.0-1_amd64.deb
+   ```
+
+2. **Enable the daemon**:
+   ```bash
+   systemctl --user enable --now novasearch-daemon
+   ```
+
+3. **Add panel plugin**:
+   - Right-click XFCE4 panel → Panel → Add New Items → NovaSearch
+
+4. **Start searching**:
+   - Press `Super+Space` to open search window
+   - Start typing to search files and applications
 
 ## Project Structure
 
 ```
 novasearch/
-├── daemon/          # Rust indexing daemon
+├── daemon/                    # Rust indexing daemon
 │   ├── src/
-│   │   ├── main.rs
-│   │   ├── config.rs
-│   │   ├── database.rs
-│   │   ├── models.rs
-│   │   ├── watcher.rs
-│   │   └── paths.rs
+│   │   ├── main.rs           # Entry point and CLI commands
+│   │   ├── config.rs         # Configuration management
+│   │   ├── database.rs       # SQLite operations with usage tracking
+│   │   ├── models.rs         # Data structures
+│   │   ├── scanner.rs        # Filesystem scanning with app discovery
+│   │   ├── watcher.rs        # Filesystem monitoring
+│   │   └── paths.rs          # Path utilities
 │   └── Cargo.toml
-├── panel/           # GTK3/C search panel plugin
+├── panel/                     # GTK3/C search panel plugin
 │   ├── src/
-│   ├── tests/
+│   │   ├── main.c            # Panel plugin with desktop file support
+│   │   ├── database.c        # Database interface
+│   │   └── database.h
+│   ├── tests/                # Unit tests
 │   └── meson.build
-├── meson.build      # Top-level build configuration
-├── build.sh         # Convenience build script
+├── debian/                    # Debian packaging
+├── build-deb-manual.sh       # Package builder
+├── meson.build               # Top-level build configuration
 └── README.md
 ```
 
-## Installation
+## Dependencies
 
-### Prerequisites
+### Build Dependencies
 
-**Required:**
+**Required for building:**
 - Rust 1.70+ and Cargo
 - GCC or Clang
-- GTK3 development libraries
-- SQLite3 development libraries
-- libxfce4panel development libraries
-- Meson build system
+- Meson build system (≥ 0.59)
+- Ninja build system
+- pkg-config
+
+**Development libraries:**
+- GTK3 development libraries (≥ 3.22)
+- SQLite3 development libraries (≥ 3.0)
+- libxfce4panel development libraries (≥ 4.12)
+- libxfce4ui development libraries
+- keybinder-3.0 development libraries
+
+### Runtime Dependencies
+
+**Required for running:**
+- GTK3 (≥ 3.22)
+- SQLite3 (≥ 3.0)
+- XFCE4 Panel (≥ 4.12)
 - systemd (for daemon service)
+- keybinder-3.0
+
+### Installation Commands
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt install build-essential rustc cargo meson ninja-build \
-  libgtk-3-dev libsqlite3-dev libxfce4panel-2.0-dev pkg-config
+sudo apt update
+sudo apt install build-essential rustc cargo meson ninja-build pkg-config \
+  libgtk-3-dev libsqlite3-dev libxfce4panel-2.0-dev libxfce4ui-2-dev \
+  libkeybinder-3.0-dev
 ```
 
 **Fedora:**
 ```bash
-sudo dnf install rust cargo meson ninja-build gtk3-devel \
-  sqlite-devel xfce4-panel-devel gcc
+sudo dnf install rust cargo meson ninja-build gtk3-devel sqlite-devel \
+  xfce4-panel-devel libxfce4ui-devel keybinder3-devel gcc pkg-config
 ```
 
 **Arch Linux:**
 ```bash
-sudo pacman -S rust meson ninja gtk3 sqlite xfce4-panel
+sudo pacman -S rust meson ninja gtk3 sqlite xfce4-panel libxfce4ui \
+  keybinder3 gcc pkg-config
 ```
 
-### Build
+## Building from Source
+
+### Method 1: Debian Package (Recommended)
 
 ```bash
-./build.sh
+# Clone the repository
+git clone https://github.com/novik133/NovaSearch.git
+cd NovaSearch
+
+# Install build dependencies (Ubuntu/Debian)
+sudo apt install build-essential rustc cargo meson ninja-build pkg-config \
+  libgtk-3-dev libsqlite3-dev libxfce4panel-2.0-dev libxfce4ui-2-dev \
+  libkeybinder-3.0-dev
+
+# Build the Debian package
+./build-deb-manual.sh
+
+# Install the package
+sudo dpkg -i novasearch_0.1.0-1_amd64.deb
+
+# Install any missing dependencies
+sudo apt-get install -f
 ```
 
-Or using Meson directly:
+### Method 2: Manual Build
+
 ```bash
-meson setup builddir
+# Build using Meson
+meson setup builddir --prefix=/usr
 meson compile -C builddir
+
+# Install
+sudo meson install -C builddir
+
+# Or install to user directory
+meson setup builddir --prefix=$HOME/.local
+meson compile -C builddir
+meson install -C builddir
 ```
 
-See [BUILD.md](BUILD.md) for detailed build instructions.
+### Method 3: Component-wise Build
 
-### Install
-
-Run the installation script:
+**Build daemon only:**
 ```bash
-./install.sh
+cd daemon
+cargo build --release
+# Binary will be at: target/release/novasearch-daemon
 ```
 
-The script will:
-- Install binaries to `~/.local/bin/`
-- Create default configuration at `~/.config/novasearch/config.toml`
-- Set up database directory at `~/.local/share/novasearch/`
-- Install systemd user service
-- Register XFCE4 panel plugin
+**Build panel plugin only:**
+```bash
+cd panel
+make
+# Library will be at: libnovasearch-panel.so
+```
 
-**Manual Installation:**
+## Installation
 
-If you prefer manual installation, see [INSTALL.md](INSTALL.md) for detailed steps.
+### Automatic Installation (Debian Package)
 
-### Post-Installation
+The Debian package automatically handles:
+- Binary installation to `/usr/bin/`
+- Panel plugin installation to `/usr/lib/x86_64-linux-gnu/xfce4/panel/plugins/`
+- Desktop file installation to `/usr/share/xfce4/panel/plugins/`
+- Systemd service installation to `/usr/lib/systemd/user/`
+- Default configuration to `/etc/xdg/novasearch/`
 
-1. **Add to PATH** (if not already):
+### Manual Installation
+
+If building manually, you need to:
+
+1. **Install binaries**:
    ```bash
-   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-   source ~/.bashrc
+   cp daemon/target/release/novasearch-daemon ~/.local/bin/
+   cp panel/libnovasearch-panel.so ~/.local/lib/xfce4/panel/plugins/
    ```
 
-2. **Enable daemon** (if not done during install):
+2. **Install service file**:
    ```bash
-   systemctl --user enable --now novasearch-daemon.service
+   mkdir -p ~/.config/systemd/user
+   cp novasearch-daemon.service ~/.config/systemd/user/
+   systemctl --user daemon-reload
    ```
 
-3. **Add panel plugin**:
-   - Right-click on XFCE4 panel → Panel → Add New Items
-   - Search for "NovaSearch"
-   - Add to panel
+3. **Install panel plugin desktop file**:
+   ```bash
+   mkdir -p ~/.local/share/xfce4/panel/plugins
+   cp panel/novasearch-panel.desktop ~/.local/share/xfce4/panel/plugins/
+   ```
 
-4. **Test the shortcut**:
-   - Press `Super+Space` to open search window
-   - Start typing to search for files
+4. **Create configuration**:
+   ```bash
+   mkdir -p ~/.config/novasearch
+   cp debian/novasearch.toml ~/.config/novasearch/config.toml
+   ```
 
 ## Configuration
 
-NovaSearch is configured via `~/.config/novasearch/config.toml`. The configuration file is created automatically with sensible defaults during installation.
+NovaSearch is configured via `~/.config/novasearch/config.toml` (user config) or `/etc/xdg/novasearch/config.toml` (system default).
 
 ### Configuration Options
 
 #### [indexing]
-
 Controls which directories and files are indexed.
 
 ```toml
 [indexing]
-include_paths = ["~", "/mnt/data"]
-exclude_patterns = [".*", "node_modules", ".git", "target"]
+include_paths = ["/home/username"]
+exclude_patterns = [".*", "*.tmp", "*.log"]
 ```
 
-- **include_paths**: Array of directories to index. Supports `~` for home directory.
-- **exclude_patterns**: Array of glob patterns for files/directories to exclude.
+**Note**: Application directories are always indexed regardless of this configuration:
+- `/usr/share/applications` (system applications)
+- `/usr/local/share/applications` (local applications)
+- `~/.local/share/applications` (user applications)
+- Snap, Flatpak, and AppImage locations
 
 #### [performance]
-
 Controls resource usage and indexing behavior.
 
 ```toml
@@ -147,13 +248,7 @@ batch_size = 100
 flush_interval_ms = 1000
 ```
 
-- **max_cpu_percent**: Maximum CPU usage during indexing (1-100)
-- **max_memory_mb**: Maximum memory usage in megabytes
-- **batch_size**: Number of operations to batch before writing to database
-- **flush_interval_ms**: Maximum time to wait before flushing batched operations
-
 #### [ui]
-
 Controls search panel behavior.
 
 ```toml
@@ -162,181 +257,144 @@ keyboard_shortcut = "Super+Space"
 max_results = 50
 ```
 
-- **keyboard_shortcut**: Global keyboard shortcut to open search window
-  - Format: `Modifier+Key` (e.g., `Super+Space`, `Control+Alt+F`, `Alt+Space`)
-  - Common modifiers: `Super`, `Control`, `Alt`, `Shift`
-- **max_results**: Maximum number of search results to display (1-1000)
+### GUI Configuration
 
-### Glob Pattern Examples
+NovaSearch includes a built-in configuration interface:
 
-Glob patterns are used in `exclude_patterns` to filter files and directories.
-
-**Basic Patterns:**
-- `*.log` - Exclude all .log files
-- `temp` - Exclude any file or directory named "temp"
-- `.*` - Exclude all hidden files and directories (starting with .)
-
-**Wildcards:**
-- `*` - Matches any characters except /
-- `**` - Matches any characters including /
-- `?` - Matches exactly one character
-
-**Examples:**
-```toml
-exclude_patterns = [
-    ".*",                    # All hidden files/directories
-    "node_modules",          # Node.js dependencies
-    ".git",                  # Git repository data
-    "target",                # Rust build artifacts
-    "*.tmp",                 # Temporary files
-    "*.cache",               # Cache files
-    "build",                 # Build directories
-    "dist",                  # Distribution directories
-    "__pycache__",           # Python cache
-    "*.pyc",                 # Python compiled files
-    ".venv",                 # Python virtual environments
-    "vendor",                # Vendor directories
-    ".DS_Store",             # macOS metadata
-    "Thumbs.db",             # Windows thumbnails
-]
-```
-
-**Advanced Patterns:**
-```toml
-exclude_patterns = [
-    "**/.git",               # .git directories anywhere
-    "**/node_modules",       # node_modules anywhere
-    "*.log",                 # All log files
-    "test_*.txt",            # Files starting with test_
-    "backup_????_??.tar",    # backup_YYYY_MM.tar pattern
-]
-```
-
-### Configuration Reload
-
-The daemon automatically reloads configuration when the file changes. Changes take effect within 10 seconds and trigger re-indexing if include/exclude patterns changed.
+1. **Access settings**: Right-click panel plugin → Configure
+2. **Hotkeys tab**: Interactive keyboard shortcut capture
+3. **Configuration tab**: Direct config.toml editing with syntax highlighting
+4. **About tab**: Version and author information
 
 ## Usage
 
-### Starting the Daemon
+### Daemon Management
 
-The daemon starts automatically on login if enabled during installation.
-
-**Manual control:**
+**CLI Commands:**
 ```bash
+# Show version
+novasearch-daemon version
+
+# Show about information
+novasearch-daemon about
+
+# Show author information
+novasearch-daemon author
+
 # Start daemon
-systemctl --user start novasearch-daemon.service
-
-# Stop daemon
-systemctl --user stop novasearch-daemon.service
-
-# Restart daemon
-systemctl --user restart novasearch-daemon.service
+novasearch-daemon start
 
 # Check status
-systemctl --user status novasearch-daemon.service
+novasearch-daemon status
+
+# Force re-index
+novasearch-daemon reindex
+```
+
+**Systemd Service:**
+```bash
+# Enable and start
+systemctl --user enable --now novasearch-daemon
+
+# Check status
+systemctl --user status novasearch-daemon
 
 # View logs
 journalctl --user -u novasearch-daemon -f
+
+# Restart
+systemctl --user restart novasearch-daemon
 ```
 
-**CLI commands:**
-```bash
-# Start daemon in foreground (for debugging)
-novasearch-daemon start
+### Search Interface
 
+1. **Open search**: Press `Super+Space` (or configured shortcut)
+2. **Search**: Type to search files and applications
+3. **Navigate**: Use arrow keys or mouse
+4. **Launch**: Press Enter or click to open/launch
+5. **Context menu**: Right-click for "Open containing folder"
+6. **Close**: Press Escape or click outside
+
+### Search Features
+
+- **Application launching**: .desktop files launch applications instead of opening in text editor
+- **Application icons**: Shows proper application icons (Firefox, Chrome, etc.)
+- **Application names**: Displays "Firefox" instead of "firefox.desktop"
+- **Usage tracking**: Frequently used items appear higher in results
+- **Real-time results**: Updates as you type with 200ms debounce
+- **Keyboard navigation**: Full keyboard support with arrow keys
+- **Case-insensitive**: Search works regardless of case
+
+## Application Discovery
+
+NovaSearch automatically discovers and indexes applications from:
+
+### System Applications
+- `/usr/share/applications` - System-wide applications
+- `/usr/local/share/applications` - Locally installed applications
+
+### User Applications
+- `~/.local/share/applications` - User-specific applications
+
+### Snap Applications
+- `/var/lib/snapd/desktop/applications` - System snap applications
+- `~/snap` - User snap applications
+
+### Flatpak Applications
+- `/var/lib/flatpak/exports/share/applications` - System flatpak applications
+- `~/.local/share/flatpak/exports/share/applications` - User flatpak applications
+
+### AppImage Applications
+- `~/Applications` - Common AppImage location
+- `~/.local/bin` - Local binaries including AppImages
+- `~/AppImages` - Dedicated AppImage folder
+- `/opt` - System-wide optional applications
+
+## Troubleshooting
+
+### Common Issues
+
+**Daemon won't start:**
+```bash
+# Check status
+systemctl --user status novasearch-daemon
+
+# View logs
+journalctl --user -u novasearch-daemon -n 50
+
+# Check binary exists
+which novasearch-daemon
+```
+
+**Search window doesn't appear:**
+```bash
+# Test shortcut
+grep keyboard_shortcut ~/.config/novasearch/config.toml
+
+# Check panel plugin
+xfce4-panel --restart
+```
+
+**No search results:**
+```bash
 # Check indexing status
 novasearch-daemon status
 
 # Force re-index
 novasearch-daemon reindex
 
-# Use custom config
-novasearch-daemon --config /path/to/config.toml start
-```
-
-### Using the Search Panel
-
-1. **Open search**: Press `Super+Space` (or your configured shortcut)
-2. **Search**: Start typing to search for files
-3. **Navigate**: Use arrow keys to move through results
-4. **Open file**: Press Enter or click on a result
-5. **Open folder**: Right-click a result → "Open containing folder"
-6. **Close search**: Press Escape or click outside the window
-
-### Search Tips
-
-- Search is case-insensitive
-- Partial matches work: "doc" finds "document.txt"
-- Results are ranked: exact matches first, then prefix matches, then substring matches
-- Search updates as you type (200ms debounce)
-
-## Troubleshooting
-
-### Daemon won't start
-
-**Check if daemon is running:**
-```bash
-systemctl --user status novasearch-daemon.service
-```
-
-**View error logs:**
-```bash
-journalctl --user -u novasearch-daemon -n 50
-```
-
-**Common issues:**
-- **Binary not found**: Ensure `~/.local/bin` is in your PATH
-- **Database locked**: Another instance may be running. Stop it with `systemctl --user stop novasearch-daemon`
-- **Permission denied**: Check permissions on `~/.local/share/novasearch/` (should be 700)
-
-### Search window doesn't appear
-
-**Check keyboard shortcut:**
-```bash
-grep keyboard_shortcut ~/.config/novasearch/config.toml
-```
-
-**Test if shortcut conflicts:**
-- Try changing shortcut in config to `Alt+Space` or `Control+Alt+F`
-- Restart daemon: `systemctl --user restart novasearch-daemon`
-
-**Check panel plugin:**
-- Ensure panel plugin is added to XFCE4 panel
-- Right-click panel → Panel → Add New Items → NovaSearch
-
-### No search results
-
-**Check if indexing is complete:**
-```bash
-novasearch-daemon status
-```
-
-**Check database:**
-```bash
+# Check database
 sqlite3 ~/.local/share/novasearch/index.db "SELECT COUNT(*) FROM files;"
 ```
 
-**Force re-index:**
-```bash
-novasearch-daemon reindex
-```
+**Applications don't launch:**
+- Ensure .desktop files are valid
+- Check application is installed
+- Try launching from terminal first
 
-**Check configuration:**
-```bash
-cat ~/.config/novasearch/config.toml
-```
-- Ensure `include_paths` contains directories you want to search
-- Check if files are excluded by `exclude_patterns`
+### Performance Issues
 
-### High CPU/memory usage
-
-**Check current resource usage:**
-```bash
-systemctl --user status novasearch-daemon.service
-```
-
-**Adjust limits in config:**
+**High CPU/Memory usage:**
 ```toml
 [performance]
 max_cpu_percent = 5      # Reduce from 10
@@ -348,199 +406,138 @@ batch_size = 50          # Reduce from 100
 ```toml
 [indexing]
 exclude_patterns = [
-    ".*",
-    "node_modules",
-    "target",
-    "build",
-    "Videos",            # Exclude large media directories
-    "Downloads",
+    ".*", "node_modules", ".git", "target",
+    "Videos", "Downloads", "build", "dist"
 ]
 ```
 
-### Database corruption
+### Database Issues
 
-**Symptoms:**
-- Search returns no results
-- Daemon crashes on startup
-- "database disk image is malformed" errors
-
-**Fix:**
+**Corruption recovery:**
 ```bash
 # Stop daemon
 systemctl --user stop novasearch-daemon
 
-# Backup old database
+# Backup and remove database
 mv ~/.local/share/novasearch/index.db ~/.local/share/novasearch/index.db.backup
 
-# Restart daemon (will create new database)
+# Restart (creates new database)
 systemctl --user start novasearch-daemon
 
-# Force re-index
+# Re-index
 novasearch-daemon reindex
-```
-
-### Panel plugin not visible
-
-**Check if plugin is installed:**
-```bash
-ls -la ~/.local/share/xfce4/panel/plugins/
-```
-
-**Reinstall plugin:**
-```bash
-./install.sh
-```
-
-**Restart XFCE panel:**
-```bash
-xfce4-panel -r
-```
-
-### Logs and debugging
-
-**View daemon logs:**
-```bash
-# Last 50 lines
-journalctl --user -u novasearch-daemon -n 50
-
-# Follow logs in real-time
-journalctl --user -u novasearch-daemon -f
-
-# Logs since last boot
-journalctl --user -u novasearch-daemon -b
-```
-
-**Enable debug logging:**
-Set `RUST_LOG` environment variable in systemd service:
-```bash
-systemctl --user edit novasearch-daemon.service
-```
-Add:
-```ini
-[Service]
-Environment="RUST_LOG=debug"
-```
-Then restart:
-```bash
-systemctl --user daemon-reload
-systemctl --user restart novasearch-daemon
 ```
 
 ## File Locations
 
-- **Daemon binary**: `~/.local/bin/novasearch-daemon`
-- **Panel plugin binary**: `~/.local/bin/novasearch-panel`
-- **Configuration**: `~/.config/novasearch/config.toml`
+### Installed Files
+- **Daemon**: `/usr/bin/novasearch-daemon`
+- **Panel plugin**: `/usr/lib/x86_64-linux-gnu/xfce4/panel/plugins/libnovasearch-panel.so`
+- **Desktop file**: `/usr/share/xfce4/panel/plugins/novasearch-panel.desktop`
+- **Service file**: `/usr/lib/systemd/user/novasearch-daemon.service`
+- **Default config**: `/etc/xdg/novasearch/config.toml`
+
+### User Data
+- **User config**: `~/.config/novasearch/config.toml`
 - **Database**: `~/.local/share/novasearch/index.db`
-- **Systemd service**: `~/.config/systemd/user/novasearch-daemon.service`
-- **Panel plugin desktop file**: `~/.local/share/xfce4/panel/plugins/novasearch-panel.desktop`
 - **Logs**: `journalctl --user -u novasearch-daemon`
 
 ## Development
 
-### Building from Source
-
-**Rust Daemon:**
-```bash
-cd daemon
-cargo test          # Run tests
-cargo build         # Debug build
-cargo build --release  # Release build
-```
-
-**Panel Plugin:**
-```bash
-meson setup builddir
-meson test -C builddir  # Run tests
-meson compile -C builddir
-```
-
 ### Running Tests
 
-**Unit tests:**
+**Daemon tests:**
 ```bash
 cd daemon
 cargo test
-```
-
-**Property-based tests:**
-```bash
-cd daemon
-cargo test --release -- --nocapture
+cargo test --release  # For property-based tests
 ```
 
 **Panel tests:**
 ```bash
-meson test -C builddir -v
+cd panel
+make test
 ```
 
-### Project Structure
+### Development Build
 
-```
-novasearch/
-├── daemon/                    # Rust indexing daemon
-│   ├── src/
-│   │   ├── main.rs           # Entry point and CLI
-│   │   ├── config.rs         # Configuration management
-│   │   ├── database.rs       # SQLite operations
-│   │   ├── models.rs         # Data structures
-│   │   ├── scanner.rs        # Filesystem scanning
-│   │   ├── watcher.rs        # Filesystem monitoring
-│   │   └── paths.rs          # Path utilities
-│   ├── examples/
-│   │   └── watcher_demo.rs   # Watcher example
-│   └── Cargo.toml
-├── panel/                     # GTK3/C search panel plugin
-│   ├── src/
-│   │   ├── main.c            # Panel plugin implementation
-│   │   ├── database.c        # Database interface
-│   │   └── database.h
-│   ├── tests/
-│   │   ├── test_database.c
-│   │   ├── test_database_query.c
-│   │   ├── test_keyboard_shortcut.c
-│   │   └── test_main.c
-│   ├── meson.build
-│   └── Makefile
-├── .kiro/specs/nova-search/   # Specification documents
-│   ├── requirements.md
-│   ├── design.md
-│   └── tasks.md
-├── meson.build                # Top-level build configuration
-├── build.sh                   # Convenience build script
-├── install.sh                 # Installation script
-├── novasearch-daemon.service  # Systemd service file
-├── BUILD.md                   # Build documentation
-├── INSTALL.md                 # Installation documentation
-└── README.md
+**Debug build:**
+```bash
+cd daemon
+cargo build  # Debug build with symbols
+
+cd panel
+make DEBUG=1  # Debug build with symbols
 ```
 
-## Documentation
+**Development daemon:**
+```bash
+cd daemon
+RUST_LOG=debug cargo run -- start
+```
 
-- [BUILD.md](BUILD.md) - Detailed build system documentation
-- [INSTALL.md](INSTALL.md) - Installation guide
-- [.kiro/specs/nova-search/](/.kiro/specs/nova-search/) - Complete specification
-  - [requirements.md](/.kiro/specs/nova-search/requirements.md) - Requirements
-  - [design.md](/.kiro/specs/nova-search/design.md) - Design document
-  - [tasks.md](/.kiro/specs/nova-search/tasks.md) - Implementation tasks
+## API and Integration
 
-## Status
+### Database Schema
 
-**Current Progress**: Task 11 Complete - Installation and packaging in progress
+The SQLite database (`~/.local/share/novasearch/index.db`) contains:
 
-- ✅ Project structure and dependencies
-- ✅ Database layer
-- ✅ Configuration management
-- ✅ Filesystem monitoring
-- ✅ Initial filesystem scanning
-- ✅ Daemon main loop and CLI
-- ✅ Search panel database interface
-- ✅ Search panel UI
-- ✅ Search panel interactions
-- ✅ Keyboard shortcut handling
-- 🔄 Installation and packaging (in progress)
-- ⏳ Final integration testing (next)
+**files table:**
+- `id` - Primary key
+- `filename` - File name
+- `path` - Full file path
+- `size` - File size in bytes
+- `modified_time` - Last modification timestamp
+- `file_type` - File type (Regular, Directory, Symlink)
+- `indexed_time` - When file was indexed
+
+**usage_stats table:**
+- `id` - Primary key
+- `file_path` - File path
+- `launch_count` - Number of times launched
+- `last_launched` - Last launch timestamp
+
+### Configuration API
+
+Configuration is managed through TOML files with automatic reloading. The daemon monitors config file changes and reloads within 10 seconds.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Ensure all tests pass
+6. Submit a pull request
+
+### Code Style
+
+**Rust code:**
+- Follow `rustfmt` formatting
+- Use `clippy` for linting
+- Add documentation for public APIs
+
+**C code:**
+- Follow GNU C style
+- Use consistent indentation (4 spaces)
+- Add comments for complex logic
 
 ## License
 
-MIT
+GPL-3.0
+
+## Author
+
+Created by Kamil 'Novik' Nowicki
+
+- GitHub: https://github.com/novik133
+- Project: https://github.com/novik133/NovaSearch
+
+## Support
+
+If you find NovaSearch useful, consider supporting development:
+- Ko-fi: https://ko-fi.com/novadesktop
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and changes.

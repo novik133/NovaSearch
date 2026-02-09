@@ -1,10 +1,10 @@
-use rusqlite::{Connection, Result as SqliteResult, params};
+use rusqlite::{Connection, Result as SqliteResult, params, OptionalExtension};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use crate::models::{FileEntry, FileType, IndexOperation};
 
 /// Database schema version
-const SCHEMA_VERSION: i32 = 1;
+const SCHEMA_VERSION: i32 = 2;
 
 /// Database connection wrapper
 pub struct Database {
@@ -53,6 +53,18 @@ impl Database {
             [],
         )?;
 
+        // Create usage statistics table
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS usage_stats (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_id INTEGER NOT NULL,
+                launch_count INTEGER NOT NULL DEFAULT 0,
+                last_launched INTEGER,
+                FOREIGN KEY (file_id) REFERENCES files (id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+
         // Create indexes for efficient searching
         self.connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_filename ON files(filename COLLATE NOCASE)",
@@ -66,6 +78,16 @@ impl Database {
 
         self.connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_modified_time ON files(modified_time)",
+            [],
+        )?;
+
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_usage_file_id ON usage_stats(file_id)",
+            [],
+        )?;
+
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_usage_launch_count ON usage_stats(launch_count DESC)",
             [],
         )?;
 
@@ -116,11 +138,9 @@ impl Database {
 
     /// Migrate schema from one version to another
     fn migrate_schema(&self, from_version: i32, to_version: i32) -> SqliteResult<()> {
-        // For now, we only have version 1, so no migrations needed
-        // Future migrations would be implemented here
         for version in from_version..to_version {
             match version {
-                // Example: 1 => self.migrate_v1_to_v2()?,
+                1 => self.migrate_v1_to_v2()?,
                 _ => {
                     // Unknown migration path
                     return Err(rusqlite::Error::InvalidQuery);
@@ -128,6 +148,34 @@ impl Database {
             }
         }
         self.set_schema_version(to_version)?;
+        Ok(())
+    }
+
+    /// Migrate from version 1 to version 2 (add usage tracking)
+    fn migrate_v1_to_v2(&self) -> SqliteResult<()> {
+        // Create usage statistics table
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS usage_stats (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_id INTEGER NOT NULL,
+                launch_count INTEGER NOT NULL DEFAULT 0,
+                last_launched INTEGER,
+                FOREIGN KEY (file_id) REFERENCES files (id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+
+        // Create indexes for usage stats
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_usage_file_id ON usage_stats(file_id)",
+            [],
+        )?;
+
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_usage_launch_count ON usage_stats(launch_count DESC)",
+            [],
+        )?;
+
         Ok(())
     }
 
@@ -213,19 +261,23 @@ impl Database {
         Ok(())
     }
 
-    /// Query files by filename pattern
+    /// Query files by filename pattern with usage-based ranking
     pub fn query_files(&self, query: &str, limit: usize) -> SqliteResult<Vec<FileEntry>> {
         let mut stmt = self.connection.prepare(
-            "SELECT id, filename, path, size, modified_time, file_type, indexed_time
-             FROM files
-             WHERE filename LIKE '%' || ? || '%'
+            "SELECT f.id, f.filename, f.path, f.size, f.modified_time, f.file_type, f.indexed_time,
+                    COALESCE(u.launch_count, 0) as launch_count,
+                    COALESCE(u.last_launched, 0) as last_launched
+             FROM files f
+             LEFT JOIN usage_stats u ON f.id = u.file_id
+             WHERE f.filename LIKE '%' || ? || '%'
              ORDER BY 
                 CASE 
-                    WHEN filename = ? THEN 0
-                    WHEN filename LIKE ? || '%' THEN 1
+                    WHEN f.filename = ? THEN 0
+                    WHEN f.filename LIKE ? || '%' THEN 1
                     ELSE 2
                 END,
-                filename COLLATE NOCASE
+                COALESCE(u.launch_count, 0) DESC,
+                f.filename COLLATE NOCASE
              LIMIT ?"
         )?;
 
@@ -368,6 +420,77 @@ impl Database {
             [],
             |row| row.get(0),
         )
+    }
+
+    /// Record that a file was launched/opened
+    pub fn record_file_launch<P: AsRef<Path>>(&self, path: P) -> SqliteResult<()> {
+        let path_str = path.as_ref().to_string_lossy().to_string();
+        let current_time = current_timestamp();
+        
+        // First, get the file ID
+        let file_id: Option<i64> = self.connection.query_row(
+            "SELECT id FROM files WHERE path = ?",
+            params![path_str],
+            |row| row.get(0),
+        ).optional()?;
+        
+        if let Some(file_id) = file_id {
+            // Insert or update usage stats
+            self.connection.execute(
+                "INSERT INTO usage_stats (file_id, launch_count, last_launched)
+                 VALUES (?, 1, ?)
+                 ON CONFLICT(file_id) DO UPDATE SET
+                    launch_count = launch_count + 1,
+                    last_launched = ?",
+                params![file_id, current_time, current_time],
+            )?;
+        }
+        
+        Ok(())
+    }
+
+    /// Get usage statistics for a file
+    pub fn get_file_usage<P: AsRef<Path>>(&self, path: P) -> SqliteResult<Option<(i32, i64)>> {
+        let path_str = path.as_ref().to_string_lossy().to_string();
+        
+        let result = self.connection.query_row(
+            "SELECT u.launch_count, u.last_launched
+             FROM files f
+             JOIN usage_stats u ON f.id = u.file_id
+             WHERE f.path = ?",
+            params![path_str],
+            |row| Ok((row.get::<_, i32>(0)?, row.get::<_, i64>(1)?)),
+        ).optional()?;
+        
+        Ok(result)
+    }
+
+    /// Get most frequently used files
+    pub fn get_most_used_files(&self, limit: usize) -> SqliteResult<Vec<FileEntry>> {
+        let mut stmt = self.connection.prepare(
+            "SELECT f.id, f.filename, f.path, f.size, f.modified_time, f.file_type, f.indexed_time
+             FROM files f
+             JOIN usage_stats u ON f.id = u.file_id
+             ORDER BY u.launch_count DESC, u.last_launched DESC
+             LIMIT ?"
+        )?;
+
+        let entries = stmt.query_map(
+            params![limit as i64],
+            |row| {
+                Ok(FileEntry {
+                    id: Some(row.get(0)?),
+                    filename: row.get(1)?,
+                    path: PathBuf::from(row.get::<_, String>(2)?),
+                    size: row.get::<_, i64>(3)? as u64,
+                    modified_time: timestamp_to_system_time(row.get(4)?),
+                    file_type: FileType::from_str(&row.get::<_, String>(5)?),
+                    indexed_time: timestamp_to_system_time(row.get(6)?),
+                })
+            },
+        )?;
+
+        entries.collect()
     }
 }
 
