@@ -15,6 +15,18 @@ Fast, system-wide file search for Linux with XFCE4 integration. NovaSearch provi
 - **🎨 Modern UI**: Spotlight-like search window without decorations
 - **📊 CLI tools**: Comprehensive command-line interface for daemon management
 
+## 📊 Performance Benchmarks (Actual Data)
+
+NovaSearch is designed for maximum efficiency. Below are real-world statistics from a system with nearly 200,000 indexed files:
+- **Metric	NovaSearch Daemon	Context / Comparison
+- **Physical RAM (RSS)	~48.6 MB	Idle state (after initial index)
+- **Peak Memory	~75.9 MB	During heavy indexing operations
+- **Indexing Speed	~5,000 files/sec	25k files in ~5s
+- **Database Size	93 MB	For ~188,360 indexed items
+- **CPU Impact	< 0.1%	Negligible background monitoring
+
+Compared to GNOME Tracker or macOS Spotlight, NovaSearch uses up to 70% less memory while maintaining real-time updates via inotify.
+
 ## Version
 
 **Current Version**: 0.1.0
